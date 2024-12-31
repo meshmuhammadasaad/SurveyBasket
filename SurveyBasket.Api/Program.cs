@@ -1,14 +1,13 @@
 using Scalar.AspNetCore;
-using SurveyBasket.Api.Services;
+using SurveyBasket.Api.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// My Services
+builder.Services.AddDependencies(builder.Configuration);
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-
-builder.Services.AddScoped<IPollService, PollService>();
 
 var app = builder.Build();
 
@@ -21,8 +20,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors();
+
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.UseExceptionHandler();
 
 app.Run();
