@@ -13,5 +13,9 @@ public class VoteRequestValidator : AbstractValidator<VoteRequest>
     {
         RuleFor(c => c.Answers)
             .NotEmpty();
+
+        RuleForEach(c => c.Answers)
+            .SetInheritanceValidator(v => v.Add(new VoteAnswerRequestValidator())
+            );
     }
 }

@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SurveyBasket.Api.Abstractions;
 using SurveyBasket.Api.Contracts.Questions;
-using SurveyBasket.Api.Errors;
 using SurveyBasket.Api.Services;
 
 namespace SurveyBasket.Api.Controllers;
@@ -18,8 +17,7 @@ public class QuestionsController(IQuestionServices questionServices) : Controlle
     {
         var result = await _questionServices.GetAllAsync(pollId, cancellationToken);
 
-        return result.IsSuccess ? Ok(result.Value)
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem();
     }
 
     [HttpGet("{id}")]
@@ -27,9 +25,7 @@ public class QuestionsController(IQuestionServices questionServices) : Controlle
     {
         var result = await _questionServices.GetByIdAsync(pollId, id, cancellationToken);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem();
     }
 
     [HttpPost("")]
@@ -37,12 +33,8 @@ public class QuestionsController(IQuestionServices questionServices) : Controlle
     {
         var result = await _questionServices.AddAsync(pollId, request, cancellationToken);
 
-        if (result.IsSuccess)
-            return CreatedAtAction(nameof(GetById), new { pollId, result.Value!.Id }, result.Value);
-
-        return result.Error == QuestionErrors.DuplicatedQuestionContent
-            ? result.ToProblem(statusCode: StatusCodes.Status409Conflict)
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+        return result.IsSuccess
+             ? CreatedAtAction(nameof(GetById), new { pollId, result.Value!.Id }, result.Value) : result.ToProblem();
     }
 
     [HttpPut("{id}")]
@@ -50,12 +42,7 @@ public class QuestionsController(IQuestionServices questionServices) : Controlle
     {
         var result = await _questionServices.UpdateAsync(pollId, id, request, cancellationToken);
 
-        if (result.IsSuccess)
-            return NoContent();
-
-        return result.Error == QuestionErrors.DuplicatedQuestionContent
-            ? result.ToProblem(statusCode: StatusCodes.Status409Conflict)
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+        return result.IsSuccess ? NoContent() : result.ToProblem();
     }
 
     [HttpPut("{id}/toggleStatus")]
@@ -64,6 +51,6 @@ public class QuestionsController(IQuestionServices questionServices) : Controlle
         var result = await _questionServices.ToggleStatusAsync(pollId, id, cancellationToken);
 
         return result.IsSuccess
-            ? NoContent() : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+            ? NoContent() : result.ToProblem();
     }
 }

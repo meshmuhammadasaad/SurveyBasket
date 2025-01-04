@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SurveyBasket.Api.Abstractions;
 using SurveyBasket.Api.Contracts.Polls;
-using SurveyBasket.Api.Errors;
 using SurveyBasket.Api.Services;
 
 namespace SurveyBasket.Api.Controllers;
@@ -34,9 +33,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     {
         var result = await _pollService.GetByIdAsync(id, cancellationToken);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem();
 
     }
 
@@ -47,7 +44,7 @@ public class PollsController(IPollService pollService) : ControllerBase
 
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value)
-            : result.ToProblem(statusCode: StatusCodes.Status409Conflict);
+            : result.ToProblem();
     }
 
     [HttpPut("{id}")]
@@ -55,13 +52,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     {
         var result = await _pollService.UpdateAsync(id, request, cancellationToken);
 
-        if (result.IsSuccess)
-            return NoContent();
-
-        return result.Error.Code == PollErrors.PollNotFound.Code
-             ? result.ToProblem(statusCode: StatusCodes.Status404NotFound)
-             : result.ToProblem(statusCode: StatusCodes.Status409Conflict);
-
+        return result.IsSuccess ? NoContent() : result.ToProblem();
     }
 
     [HttpDelete("{id}")]
@@ -69,9 +60,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     {
         var result = await _pollService.DeleteAsync(id, cancellationToken);
 
-        return result.IsSuccess
-            ? NoContent()
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+        return result.IsSuccess ? NoContent() : result.ToProblem();
     }
 
     [HttpPut("{id}/togglePublish")]
@@ -79,9 +68,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     {
         var result = await _pollService.TogglePublishStatusAsync(id, cancellationToken);
 
-        return result.IsSuccess
-            ? NoContent()
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+        return result.IsSuccess ? NoContent() : result.ToProblem();
     }
 
 }

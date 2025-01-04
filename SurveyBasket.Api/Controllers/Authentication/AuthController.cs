@@ -8,25 +8,17 @@ using SurveyBasket.Api.Services;
 namespace SurveyBasket.Api.Controllers.Authentication;
 [Route("[controller]")]
 [ApiController]
-public class AuthController : ControllerBase
+public class AuthController(IAuthService authService, IOptions<JwtOptions> jwtOptions) : ControllerBase
 {
-    private readonly JwtOptions _jwtOptions;
-    private readonly IAuthService _authService;
-
-    public AuthController(IAuthService authService, IOptions<JwtOptions> jwtOptions)
-    {
-        _authService = authService;
-        _jwtOptions = jwtOptions.Value;
-    }
+    private readonly JwtOptions _jwtOptions = jwtOptions.Value;
+    private readonly IAuthService _authService = authService;
 
     [HttpPost("")]
     public async Task<IActionResult> LoginAsync([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.GetTokenAsync(request.Email, request.Password, cancellationToken);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : result.ToProblem(statusCode: StatusCodes.Status400BadRequest);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem();
     }
 
     [HttpPost("refresh")]
@@ -34,9 +26,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.GenerateRefreshTokenAsync(request.Token, request.RefreshToken, cancellationToken);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : result.ToProblem(statusCode: StatusCodes.Status400BadRequest);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem();
     }
 
     [HttpPost("revoke-refresh-token")]
@@ -44,8 +34,6 @@ public class AuthController : ControllerBase
     {
         var isRevoked = await _authService.RevokeRefreshTokenAsync(request.Token, request.RefreshToken, cancellationToken);
 
-        return isRevoked.IsSuccess
-        ? Ok("refresh token is revoked")
-            : isRevoked.ToProblem(statusCode: StatusCodes.Status400BadRequest);
+        return isRevoked.IsSuccess ? Ok("refresh token is revoked") : isRevoked.ToProblem();
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SurveyBasket.Api.Abstractions;
-using SurveyBasket.Api.Errors;
+using SurveyBasket.Api.Contracts.Votes;
 using SurveyBasket.Api.Extensions;
 using SurveyBasket.Api.Services;
 
@@ -9,9 +9,10 @@ namespace SurveyBasket.Api.Controllers;
 [Route("api/polls/{pollId}/Vote")]
 [ApiController]
 [Authorize]
-public class VotesController(IQuestionServices questionServices) : ControllerBase
+public class VotesController(IQuestionServices questionServices, IVoteServices voteServices) : ControllerBase
 {
     private readonly IQuestionServices _questionServices = questionServices;
+    private readonly IVoteServices _voteServices = voteServices;
 
     [HttpGet("")]
     public async Task<IActionResult> Start([FromRoute] int pollId, CancellationToken cancellationToken)
@@ -20,11 +21,16 @@ public class VotesController(IQuestionServices questionServices) : ControllerBas
 
         var result = await _questionServices.GetAvailableAsync(pollId, userId!, cancellationToken);
 
-        if (result.IsSuccess)
-            return Ok(result.Value);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem();
+    }
 
-        return (result.Error == PollErrors.PollNotFound)
-            ? result.ToProblem(StatusCodes.Status404NotFound)
-            : result.ToProblem(StatusCodes.Status409Conflict);
+    [HttpPost("")]
+    public async Task<IActionResult> Vote([FromRoute] int pollId, [FromBody] VoteRequest request, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+
+        var result = await _voteServices.AddAsync(pollId, userId!, request, cancellationToken);
+
+        return result.IsSuccess ? Created() : result.ToProblem();
     }
 }
