@@ -8,23 +8,21 @@ using SurveyBasket.Api.Persistence;
 
 namespace SurveyBasket.Api.Services;
 
-public class PollService : IPollService
+public class PollService(ApplicationDbContext context) : IPollService
 {
-    private readonly ApplicationDbContext _context;
-
-    public PollService(ApplicationDbContext context)
-    {
-        _context = context;
-    }
+    private readonly ApplicationDbContext _context = context;
 
     public async Task<IEnumerable<PollResponse>?> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        var result = await _context.Polls.AsNoTracking().ToListAsync(cancellationToken);
+        => await _context.Polls.AsNoTracking()
+            .ProjectToType<PollResponse>()
+            .ToListAsync(cancellationToken);
 
-        return result.Adapt<IEnumerable<PollResponse>>();
-    }
-
-
+    public async Task<IEnumerable<PollResponse>?> GetCurrentAsync(CancellationToken cancellationToken = default)
+        => await _context.Polls
+            .Where(c => c.IsPublished && c.EndsAt >= DateOnly.FromDateTime(DateTime.UtcNow) && c.StartsAt <= DateOnly.FromDateTime(DateTime.UtcNow))
+            .AsNoTracking()
+            .ProjectToType<PollResponse>()
+            .ToListAsync(cancellationToken);
 
     public async Task<Result<PollResponse>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
@@ -34,7 +32,6 @@ public class PollService : IPollService
             ? Result.Success(result.Adapt<PollResponse>())
             : Result.Failure<PollResponse>(PollErrors.PollNotFound);
     }
-
 
     public async Task<Result<PollResponse>> AddAsync(PollRequest request, CancellationToken cancellationToken = default)
     {
@@ -50,7 +47,6 @@ public class PollService : IPollService
 
         return Result.Success(poll.Adapt<PollResponse>());
     }
-
     public async Task<Result> UpdateAsync(int id, PollRequest request, CancellationToken cancellationToken = default)
     {
         var oldPoll = await _context.Polls.FindAsync(id, cancellationToken);

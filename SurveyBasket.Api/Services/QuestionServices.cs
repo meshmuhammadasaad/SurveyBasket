@@ -1,6 +1,7 @@
 ﻿using Mapster;
 using Microsoft.EntityFrameworkCore;
 using SurveyBasket.Api.Abstractions;
+using SurveyBasket.Api.Contracts.Answers;
 using SurveyBasket.Api.Contracts.Questions;
 using SurveyBasket.Api.Entities;
 using SurveyBasket.Api.Errors;
@@ -31,8 +32,34 @@ public class QuestionServices(ApplicationDbContext context) : IQuestionServices
             .ToListAsync(cancellationToken);
 
         return Result.Success(questions.Adapt<IEnumerable<QuestionResponse>>());
-
     }
+
+    public async Task<Result<IEnumerable<QuestionResponse>>> GetAvailableAsync(int pollId, string userId, CancellationToken cancellationToken = default)
+    {
+        var hasVote = await _context.Votes.AnyAsync(c => c.PollId == pollId && c.UserId == userId, cancellationToken);
+
+        if (hasVote)
+            return Result.Failure<IEnumerable<QuestionResponse>>(VoteErrors.DuplicatedVote);
+
+        var pollIsExists = await _context.Polls.AnyAsync(c => c.Id == pollId && c.IsPublished && c.StartsAt <= DateOnly.FromDateTime(DateTime.UtcNow) && c.EndsAt >= DateOnly.FromDateTime(DateTime.UtcNow));
+
+        if (!pollIsExists)
+            return Result.Failure<IEnumerable<QuestionResponse>>(PollErrors.PollNotFound);
+
+        var response = await _context.Questions
+            .Where(q => q.PollId == pollId && q.IsActive)
+            .Include(q => q.Answers)
+            .Select(q => new QuestionResponse(
+                q.Id,
+                q.Content,
+                q.Answers.Where(a => a.IsActive).Select(a => new AnswerResponse(a.Id, a.Content))
+                ))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return Result.Success<IEnumerable<QuestionResponse>>(response);
+    }
+
 
     public async Task<Result<QuestionResponse>> GetByIdAsync(int pollId, int id, CancellationToken cancellationToken = default)
     {

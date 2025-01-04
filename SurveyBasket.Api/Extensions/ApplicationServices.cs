@@ -12,7 +12,9 @@ public static class ApplicationServices
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IQuestionServices, QuestionServices>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
+        services.AddScoped<IVoteServices, VoteServices>();
 
+        // middleware setting
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();
 
