@@ -13,6 +13,7 @@ public static class ApplicationServices
         services.AddScoped<IQuestionServices, QuestionServices>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
         services.AddScoped<IVoteServices, VoteServices>();
+        services.AddScoped<IResultServices, ResultServices>();
 
         // middleware setting
         services.AddExceptionHandler<GlobalExceptionHandler>();
