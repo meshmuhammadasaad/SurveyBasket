@@ -18,6 +18,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddDependencies(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddControllers();
+        services.AddOpenApi();
+
         var origins = configuration.GetSection("AllowedOrigins").Get<string[]>();
 
         services.AddCors(options =>
@@ -34,6 +37,7 @@ public static class DependencyInjection
         services.AddFluentValidation();
         services.AddDbContextService(configuration);
         services.AddAuthConfig(configuration);
+        services.AddDistributedMemoryCache();
 
         return services;
     }
