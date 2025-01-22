@@ -1,4 +1,5 @@
 ﻿using Mapster;
+using Microsoft.AspNetCore.Identity.Data;
 using SurveyBasket.Api.Contracts.Questions;
 using SurveyBasket.Api.Entities;
 
@@ -10,5 +11,8 @@ public class MappingConfigurations : IRegister
     {
         config.NewConfig<QuestionRequest, Question>()
             .Map(dest => dest.Answers, scr => scr.Answers.Select(ans => new Answer { Content = ans }));
+
+        config.NewConfig<RegisterRequest, ApplicationUser>()
+            .Map(dest => dest.UserName, src => src.Email);
     }
 }

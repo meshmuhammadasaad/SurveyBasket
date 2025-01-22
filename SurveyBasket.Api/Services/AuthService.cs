@@ -1,23 +1,118 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Mapster;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using SurveyBasket.Api.Abstractions;
 using SurveyBasket.Api.Authentication;
 using SurveyBasket.Api.Contracts.Authentications;
 using SurveyBasket.Api.Entities;
 using SurveyBasket.Api.Errors;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace SurveyBasket.Api.Services;
 
-public class AuthService : IAuthService
+public class AuthService(UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
+    IJwtProvider jwtProvider,
+    ILogger<AuthService> logger,
+    IHttpContextAccessor _httpContextAccessor,
+    IEmailSender emailSender) : IAuthService
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IJwtProvider _jwtProvider;
-
+    private readonly UserManager<ApplicationUser> _userManager = userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
+    private readonly IJwtProvider _jwtProvider = jwtProvider;
+    private readonly ILogger<AuthService> _logger = logger;
+    private readonly IHttpContextAccessor _httpContextAccessor = _httpContextAccessor;
+    private readonly IEmailSender _emailSender = emailSender;
     private readonly int _refreshTokenExpiryDays = 14;
-    public AuthService(UserManager<ApplicationUser> userManager, IJwtProvider jwtProvider)
+
+    public async Task<Result> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
-        _userManager = userManager;
-        _jwtProvider = jwtProvider;
+        var emailIsExists = await _userManager.Users.AnyAsync(c => c.Email == request.Email, cancellationToken);
+
+        if (emailIsExists)
+            return Result.Failure(UserErrors.DuplicatedEmail);
+
+        var user = request.Adapt<ApplicationUser>();
+        user.UserName = request.Email;
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.First();
+            return Result.Failure(new Error(errors.Code, errors.Description, StatusCodes.Status400BadRequest));
+        }
+
+        var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+        var scheme = _httpContextAccessor.HttpContext?.Request.Scheme;
+        var origin = _httpContextAccessor.HttpContext?.Request.Host.Value;
+
+        var callbackUrl = $"{scheme}://{origin}/auth/confirm-email?userId={user.Id}&code={code}";
+
+        _logger.LogInformation("Confirmation Email Url : {callbackUrl}", callbackUrl);
+
+        await _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking :   {callbackUrl} ");
+
+        return Result.Success();
+    }
+
+    public async Task<Result> ConfiremEmailAsync(ConfirmEmailRequest request)
+    {
+        if (await _userManager.FindByIdAsync(request.UserId) is not { } user)
+            return Result.Failure(UserErrors.InvaildCode);
+
+        if (user.EmailConfirmed)
+            return Result.Failure(UserErrors.DuplicatedEmailConf);
+
+        var code = request.Code;
+
+        try
+        {
+            code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
+        }
+        catch (Exception)
+        {
+            return Result.Failure(UserErrors.InvaildCode);
+        }
+
+        var result = await _userManager.ConfirmEmailAsync(user, code);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.First();
+            return Result.Failure(new Error(errors.Code, errors.Description, StatusCodes.Status400BadRequest));
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> ResendConfirmationEmailAsync(ResendConfirmationEmailRequest request)
+    {
+        if (await _userManager.FindByEmailAsync(request.Email) is not { } user)
+            return Result.Success();
+
+        if (user.EmailConfirmed)
+            return Result.Failure(UserErrors.DuplicatedEmailConf);
+
+        var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+        var scheme = _httpContextAccessor.HttpContext?.Request.Scheme;
+        var origin = _httpContextAccessor.HttpContext?.Request.Host.Value;
+
+        var callbackUrl = $"{scheme}://{origin}/auth/confirm-email?userId={user.Id}&code={code}";
+
+        _logger.LogInformation("Confirmation Email Url : {callbackUrl}", callbackUrl);
+
+        await _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking: {callbackUrl}");
+
+
+        return Result.Success();
     }
 
     public async Task<Result<AuthResponse>> GetTokenAsync(string email, string password, CancellationToken cancellationToken = default)
@@ -27,10 +122,12 @@ public class AuthService : IAuthService
         if (user is null)
             return Result.Failure<AuthResponse>(UserErrors.InvaildCredentials);
 
-        var isValidPassword = await _userManager.CheckPasswordAsync(user, password);
+        //var isValidPassword = await _userManager.CheckPasswordAsync(user, password);
 
-        if (!isValidPassword)
-            return Result.Failure<AuthResponse>(UserErrors.InvaildCredentials);
+        var result = await _signInManager.PasswordSignInAsync(user, password, false, false);
+
+        if (!result.Succeeded)
+            return Result.Failure<AuthResponse>(result.IsNotAllowed ? UserErrors.EmailNotConfirmed : UserErrors.InvaildCredentials);
 
         var (token, expiresIn) = _jwtProvider.GenerateToken(user);
         var refreshToken = GenerateRefreshToken();
@@ -44,17 +141,16 @@ public class AuthService : IAuthService
 
         await _userManager.UpdateAsync(user);
 
-        var response = new AuthResponse
-        {
-            Id = user.Id,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email,
-            Token = token,
-            ExpiresIn = expiresIn,
-            RefreshToken = refreshToken,
-            RefreshTokenExpiration = refreshTokenExpiration
-        };
+        var response = new AuthResponse(
+            user.Id,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            token,
+            expiresIn,
+            refreshToken,
+            refreshTokenExpiration
+        );
 
         return Result.Success(response);
     }
@@ -91,16 +187,16 @@ public class AuthService : IAuthService
         await _userManager.UpdateAsync(user);
 
         var response = new AuthResponse
-        {
-            Id = user.Id,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email,
-            Token = newToken,
-            ExpiresIn = expiresIn,
-            RefreshToken = newRefreshToken,
-            RefreshTokenExpiration = refreshTokenExpiration
-        };
+        (
+             user.Id,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            newToken,
+            expiresIn,
+            newRefreshToken,
+            refreshTokenExpiration
+        );
 
         return Result.Success(response);
     }

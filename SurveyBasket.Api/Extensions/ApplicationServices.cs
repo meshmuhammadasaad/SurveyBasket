@@ -1,4 +1,5 @@
-﻿using SurveyBasket.Api.Authentication;
+﻿using Microsoft.AspNetCore.Identity.UI.Services;
+using SurveyBasket.Api.Authentication;
 using SurveyBasket.Api.Errors;
 using SurveyBasket.Api.Services;
 using SurveyBasket.Api.Services.Caching;
@@ -16,6 +17,8 @@ public static class ApplicationServices
         services.AddScoped<IVoteServices, VoteServices>();
         services.AddScoped<IResultServices, ResultServices>();
         services.AddScoped<ICacheServices, CacheServices>();
+        services.AddScoped<IEmailSender, EmailService>();
+        services.AddHttpContextAccessor();
 
         // middleware setting
         services.AddExceptionHandler<GlobalExceptionHandler>();

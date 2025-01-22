@@ -7,18 +7,21 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 {
     public RegisterRequestValidator()
     {
-        RuleFor(r => r.Email).NotEmpty()
+        RuleFor(r => r.Email)
+            .NotEmpty()
             .EmailAddress();
 
-        RuleFor(r => r.Password).NotEmpty()
-            .MinimumLength(8)
+        RuleFor(r => r.Password)
+            .NotEmpty()
             .Matches(RegexPatterns.Password)
             .WithMessage("password shoud be at least 8 digits and shoud contains Lowercase, NonAlphanumeric and Uppercase");
 
-        RuleFor(r => r.FirstName).NotEmpty()
+        RuleFor(r => r.FirstName)
+            .NotEmpty()
             .Length(3, 100);
 
-        RuleFor(r => r.LastName).NotEmpty()
+        RuleFor(r => r.LastName)
+            .NotEmpty()
             .Length(3, 100);
     }
 }
