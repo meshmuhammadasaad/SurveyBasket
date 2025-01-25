@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
+using Hangfire;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -39,6 +40,7 @@ public static class DependencyInjection
         services.AddDbContextService(configuration);
         services.AddAuthConfig(configuration);
         services.AddDistributedMemoryCache();
+        services.AddHangfireservices(configuration); 
 
         services.Configure<MailSettings>(configuration.GetSection(nameof(MailSettings)));
 
@@ -111,6 +113,20 @@ public static class DependencyInjection
         });
 
         return services;
+    }
 
+    private static IServiceCollection AddHangfireservices(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Add Hangfire services.
+        services.AddHangfire(config => config 
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(configuration.GetConnectionString("HangfireConnection")));
+
+        // Add the processing server as IHostedService
+        services.AddHangfireServer();
+
+        return services;
     }
 }

@@ -1,4 +1,5 @@
-﻿using Mapster;
+﻿using Hangfire;
+using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.WebUtilities;
@@ -56,7 +57,9 @@ public class AuthService(UserManager<ApplicationUser> userManager,
 
         _logger.LogInformation("Confirmation Email Url : {callbackUrl}", callbackUrl);
 
-        await _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking :   {callbackUrl} ");
+        BackgroundJob.Enqueue(() => _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking :   {callbackUrl} "));
+
+        //await _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking :   {callbackUrl} ");
 
         return Result.Success();
     }
@@ -109,7 +112,9 @@ public class AuthService(UserManager<ApplicationUser> userManager,
 
         _logger.LogInformation("Confirmation Email Url : {callbackUrl}", callbackUrl);
 
-        await _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking: {callbackUrl}");
+        BackgroundJob.Enqueue(() => _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking: {callbackUrl}"));
+
+        //await _emailSender.SendEmailAsync(user.Email!, "Survey Basket: Email Confirmation", $"Please confirm your email by clicking: {callbackUrl}");
 
 
         return Result.Success();

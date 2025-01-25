@@ -18,6 +18,7 @@ public static class ApplicationServices
         services.AddScoped<IResultServices, ResultServices>();
         services.AddScoped<ICacheServices, CacheServices>();
         services.AddScoped<IEmailSender, EmailService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddHttpContextAccessor();
 
         // middleware setting
