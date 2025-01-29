@@ -3,36 +3,27 @@ using MailKit.Security;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using MimeKit.Text;
 using SurveyBasket.Api.Setting;
 
 namespace SurveyBasket.Api.Services;
 
 public class EmailService(IOptions<MailSettings> mailSettings) : IEmailSender
 {
-    private readonly MailSettings _mailSettings = mailSettings.Value;
+    private readonly MailSettings _emailSettings = mailSettings.Value;
 
-    public async Task SendEmailAsync(string email, string subject, string htmlMessage)
+    public async Task SendEmailAsync(string Email, string subject, string htmlMessage)
     {
-        var message = new MimeMessage
-        {
-            Sender = MailboxAddress.Parse(_mailSettings.Mail),
-            Subject = subject
-        };
-
-        message.To.Add(MailboxAddress.Parse(email));
-
-        var builder = new BodyBuilder
-        {
-            HtmlBody = htmlMessage
-        };
-
-        message.Body = builder.ToMessageBody();
+        var email = new MimeMessage();
+        email.From.Add(new MailboxAddress(_emailSettings.DisplayName, _emailSettings.Host));
+        email.To.Add(MailboxAddress.Parse(Email));
+        email.Subject = subject;
+        email.Body = new TextPart(TextFormat.Html) { Text = htmlMessage };
 
         using var smtp = new SmtpClient();
-
-        smtp.Connect(_mailSettings.Host, _mailSettings.Post, SecureSocketOptions.StartTls);
-        smtp.Authenticate(_mailSettings.Mail, _mailSettings.Password);
-        await smtp.SendAsync(message);
-        smtp.Disconnect(true);  
+        await smtp.ConnectAsync(_emailSettings.Mail, _emailSettings.Port, SecureSocketOptions.StartTls);
+        await smtp.AuthenticateAsync(_emailSettings.Host, _emailSettings.Password);
+        await smtp.SendAsync(email);
+        await smtp.DisconnectAsync(true);
     }
 }

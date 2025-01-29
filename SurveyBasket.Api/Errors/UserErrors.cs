@@ -24,4 +24,10 @@ public static class UserErrors
 
     public static readonly Error DuplicatedEmailConf =
     new("User.DuplicatedEmailConf", "Email is already confirmed", StatusCodes.Status400BadRequest);
+
+    public static readonly Error UserNotFound =
+    new("User.UserNotFound", "No users found with this ID", StatusCodes.Status404NotFound);
+
+    public static readonly Error InvalidOldPassword =
+    new("User.InvalidOldPassword", "Old password not correct", StatusCodes.Status404NotFound);
 }

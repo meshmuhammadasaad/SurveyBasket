@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SurveyBasket.Api.Abstractions;
 using SurveyBasket.Api.Contracts.Authentications;
+using SurveyBasket.Api.Contracts.Users;
 using SurveyBasket.Api.Services;
 
 namespace SurveyBasket.Api.Controllers.Authentication;
@@ -20,7 +21,7 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
     }
 
     [HttpPost("confirm-email")]
-    public async Task<IActionResult> ConfirmEmail([FromQuery] ConfirmEmailRequest request)
+    public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
     {
         var result = await _authService.ConfiremEmailAsync(request);
 
@@ -59,5 +60,21 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
         var isRevoked = await _authService.RevokeRefreshTokenAsync(request.Token, request.RefreshToken, cancellationToken);
 
         return isRevoked.IsSuccess ? Ok("refresh token is revoked") : isRevoked.ToProblem();
+    }
+
+    [HttpPost("forget-password")]
+    public async Task<IActionResult> ForgetPasswordAsync([FromBody] ForgetPasswordRequest request)
+    {
+        var result = await _authService.SendResetPasswordCodeAsync(request.Email);
+
+        return result.IsSuccess ? Ok() : result.ToProblem();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPasswordAsync([FromBody] ResetPasswordRequest request)
+    {
+        var result = await _authService.ResetPasswordAsync(request);
+
+        return result.IsSuccess ? Ok() : result.ToProblem();
     }
 }

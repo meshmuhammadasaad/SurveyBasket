@@ -31,9 +31,4 @@
     <PackageReference Include="ServiceStack.Text" Version="8.5.2" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Helpers\" />
-    <Folder Include="Templetes\" />
-  </ItemGroup>
-
 </Project>
