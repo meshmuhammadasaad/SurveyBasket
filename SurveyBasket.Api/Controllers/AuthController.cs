@@ -4,7 +4,7 @@ using SurveyBasket.Api.Contracts.Authentications;
 using SurveyBasket.Api.Contracts.Users;
 using SurveyBasket.Api.Services;
 
-namespace SurveyBasket.Api.Controllers.Authentication;
+namespace SurveyBasket.Api.Controllers;
 [Route("[controller]")]
 [ApiController]
 public class AuthController(IAuthService authService, ILogger<AuthController> logger) : ControllerBase
@@ -39,7 +39,7 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
     [HttpPost("")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Logging with enmail: {Email} and Password: {Password}", request.Email, request.Password);
+        //_logger.LogInformation("Logging with enmail: {Email} and Password: {Password}", request.Email, request.Password);
 
         var result = await _authService.GetTokenAsync(request.Email, request.Password, cancellationToken);
 

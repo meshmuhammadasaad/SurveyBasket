@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using SurveyBasket.Api.Abstractions;
+using SurveyBasket.Api.Abstractions.Consts;
 using SurveyBasket.Api.Authentication;
 using SurveyBasket.Api.Contracts.Authentications;
 using SurveyBasket.Api.Entities;
 using SurveyBasket.Api.Errors;
+using SurveyBasket.Api.Persistence;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -18,15 +20,17 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     IJwtProvider jwtProvider,
     ILogger<AuthService> logger,
-    IHttpContextAccessor _httpContextAccessor,
-    IEmailSender emailSender) : IAuthService
+    IHttpContextAccessor httpContextAccessor,
+    IEmailSender emailSender,
+    ApplicationDbContext context) : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
     private readonly IJwtProvider _jwtProvider = jwtProvider;
     private readonly ILogger<AuthService> _logger = logger;
-    private readonly IHttpContextAccessor _httpContextAccessor = _httpContextAccessor;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly IEmailSender _emailSender = emailSender;
+    private readonly ApplicationDbContext _context = context;
     private readonly int _refreshTokenExpiryDays = 14;
 
     public async Task<Result> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
@@ -91,6 +95,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
             return Result.Failure(new Error(errors.Code, errors.Description, StatusCodes.Status400BadRequest));
         }
 
+        await _userManager.AddToRoleAsync(user, DefaultRoles.Member);
         return Result.Success();
     }
 
@@ -134,7 +139,28 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         if (!result.Succeeded)
             return Result.Failure<AuthResponse>(result.IsNotAllowed ? UserErrors.EmailNotConfirmed : UserErrors.InvaildCredentials);
 
-        var (token, expiresIn) = _jwtProvider.GenerateToken(user);
+        var roles = await _userManager.GetRolesAsync(user);
+
+        //var permissins = await _context.Roles
+        //    .Join(_context.RoleClaims,
+        //        role => role.Id, claim => claim.RoleId,
+        //        (role, claim) => new { role, claim }
+        //    )
+        //    .Where(c => roles.Contains(c.role.Name!))
+        //    .Select(c => c.claim.ClaimValue)
+        //    .Distinct()
+        //    .ToListAsync(cancellationToken);
+
+        var permissins = await (from r in _context.Roles
+                                join c in _context.RoleClaims
+                                on r.Id equals c.RoleId
+                                where roles.Contains(r.Name!)
+                                select c.ClaimValue!)
+                                .Distinct()
+                                .ToListAsync(cancellationToken);
+
+
+        var (token, expiresIn) = _jwtProvider.GenerateToken(user, roles, permissins!);
         var refreshToken = GenerateRefreshToken();
         var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
 
@@ -179,7 +205,19 @@ public class AuthService(UserManager<ApplicationUser> userManager,
 
         userRefreshToken.RevokedOn = DateTime.UtcNow;
 
-        var (newToken, expiresIn) = _jwtProvider.GenerateToken(user);
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var permissins = await _context.Roles
+            .Join(_context.RoleClaims,
+                role => role.Id, claim => claim.RoleId,
+                (role, claim) => new { role, claim }
+            )
+            .Where(c => roles.Contains(c.role.Name!))
+            .Select(c => c.claim.ClaimValue)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var (newToken, expiresIn) = _jwtProvider.GenerateToken(user, roles, permissins!);
         var newRefreshToken = GenerateRefreshToken();
         var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
 

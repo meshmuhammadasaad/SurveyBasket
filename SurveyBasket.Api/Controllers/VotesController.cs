@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SurveyBasket.Api.Abstractions;
+using SurveyBasket.Api.Abstractions.Consts;
 using SurveyBasket.Api.Contracts.Votes;
 using SurveyBasket.Api.Extensions;
 using SurveyBasket.Api.Services;
@@ -8,7 +9,7 @@ using SurveyBasket.Api.Services;
 namespace SurveyBasket.Api.Controllers;
 [Route("api/polls/{pollId}/Vote")]
 [ApiController]
-[Authorize]
+[Authorize(Roles = DefaultRoles.Member)] 
 public class VotesController(IQuestionServices questionServices, IVoteServices voteServices) : ControllerBase
 {
     private readonly IQuestionServices _questionServices = questionServices;

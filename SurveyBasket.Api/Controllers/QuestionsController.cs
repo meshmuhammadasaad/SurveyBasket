@@ -1,13 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SurveyBasket.Api.Abstractions;
+using SurveyBasket.Api.Abstractions.Consts;
 using SurveyBasket.Api.Contracts.Questions;
 using SurveyBasket.Api.Services;
 
 namespace SurveyBasket.Api.Controllers;
 [Route("api/polls/{pollId}/[controller]")]
 [ApiController]
-[Authorize]
+[Authorize(Roles = DefaultRoles.Admin)]
 public class QuestionsController(IQuestionServices questionServices) : ControllerBase
 {
     private readonly IQuestionServices _questionServices = questionServices;

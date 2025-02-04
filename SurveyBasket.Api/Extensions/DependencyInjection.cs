@@ -4,11 +4,13 @@ using Hangfire;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SurveyBasket.Api.Authentication;
 using SurveyBasket.Api.Entities;
+using SurveyBasket.Api.Filters;
 using SurveyBasket.Api.Persistence;
 using SurveyBasket.Api.Setting;
 using System.Reflection;
@@ -40,7 +42,7 @@ public static class DependencyInjection
         services.AddDbContextService(configuration);
         services.AddAuthConfig(configuration);
         services.AddDistributedMemoryCache();
-        services.AddHangfireservices(configuration); 
+        services.AddHangfireservices(configuration);
 
         services.Configure<MailSettings>(configuration.GetSection(nameof(MailSettings)));
 
@@ -76,9 +78,12 @@ public static class DependencyInjection
     }
     private static IServiceCollection AddAuthConfig(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddIdentity<ApplicationUser, IdentityRole>()
+        services.AddIdentity<ApplicationUser, ApplicationRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
+
+        services.AddTransient<IAuthorizationHandler, PermissionAuthorizationHandler>();
+        services.AddTransient<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
@@ -118,7 +123,7 @@ public static class DependencyInjection
     private static IServiceCollection AddHangfireservices(this IServiceCollection services, IConfiguration configuration)
     {
         // Add Hangfire services.
-        services.AddHangfire(config => config 
+        services.AddHangfire(config => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()

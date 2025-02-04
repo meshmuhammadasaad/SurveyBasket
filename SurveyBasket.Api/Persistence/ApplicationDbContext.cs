@@ -6,13 +6,10 @@ using System.Reflection;
 
 namespace SurveyBasket.Api.Persistence;
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IHttpContextAccessor httpContextAccessor) : 
+    IdentityDbContext<ApplicationUser,ApplicationRole,string>(options)
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IHttpContextAccessor httpContextAccessor) : base(options)
-    {
-        _httpContextAccessor = httpContextAccessor;
-    }
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     public DbSet<Poll> Polls { get; set; }
     public DbSet<Answer> Answers { get; set; }
